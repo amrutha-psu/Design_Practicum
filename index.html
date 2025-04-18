@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sheldon Chatbot</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      max-width: 600px; 
+      margin: 2em auto; 
+      padding: 0 1em; 
+      background-color: #f5f5f5;
+    }
+    #chatbox { 
+      border: 1px solid #ccc; 
+      padding: 1em; 
+      height: 400px; 
+      overflow-y: auto; 
+      margin-bottom: 1em; 
+      border-radius: 8px;
+      background-color: white;
+    }
+    .msg { 
+      margin: 0.5em 0; 
+      padding: 1em; 
+      border-radius: 12px; 
+      line-height: 1.4; 
+      white-space: pre-wrap;
+    }
+    .you { 
+      background: #e3f2fd; 
+      margin-left: 15%; 
+      margin-right: 5%;
+    }
+    .bot { 
+      background: #e8f5e9; 
+      margin-right: 15%; 
+      margin-left: 5%;
+    }
+    #input { 
+      width: 70%; 
+      padding: 0.8em; 
+      margin-right: 2%; 
+      border: 1px solid #ccc; 
+      border-radius: 8px; 
+      font-size: 16px;
+    }
+    #send { 
+      width: 28%; 
+      padding: 0.8em; 
+      background: #007bff; 
+      color: white; 
+      border: none; 
+      border-radius: 8px; 
+      cursor: pointer;
+      font-size: 16px;
+    }
+    #send:disabled { 
+      background: #cccccc; 
+      cursor: not-allowed;
+    }
+    .thinking {
+      color: #666;
+      font-style: italic;
+      background: #f8f9fa;
+      border: 1px dashed #ddd;
+      text-align: center;
+      padding: 0.5em;
+    }
+    .thinking::after {
+      content: '...';
+      display: inline-block;
+      width: 1em;
+      animation: dots 1.5s infinite;
+    }
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60% { content: '...'; }
+      80%, 100% { content: ''; }
+    }
+    .error {
+      color: #721c24;
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+    }
+  </style>
+</head>
+<body>
+  <h2 style="text-align: center; color: #2c3e50; margin-bottom: 1em;">Sheldon Chatbot</h2>
+  <div id="chatbox"></div>
+  <div style="display: flex; gap: 0.5em; margin-top: 1em;">
+    <input id="input" placeholder="Ask Sheldon a question…" autofocus />
+    <button id="send">Send</button>
+  </div>
+
+  <script>
+    const API = "https://44ed-34-145-106-108.ngrok-free.app/chatbot";
+    const chatbox = document.getElementById("chatbox");
+    const input = document.getElementById("input");
+    const sendBtn = document.getElementById("send");
+
+    function appendMessage(text, cls) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      div.className = `msg ${cls}`;
+      chatbox.appendChild(div);
+      chatbox.scrollTop = chatbox.scrollHeight;
+      return div;
+    }
+
+    async function sendMessage() {
+      const query = input.value.trim();
+      if (!query) return;
+
+      // Add user message
+      appendMessage(query, "you");
+      input.value = "";
+      input.disabled = true;
+      sendBtn.disabled = true;
+
+      // Add thinking indicator
+      const thinkingMsg = appendMessage("Sheldon is contemplating", "thinking");
+
+      try {
+        const response = await fetch(API, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          },
+          body: JSON.stringify({ text: query })
+        });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        const data = await response.json();
+        
+        // Remove query from response and clean up
+        const cleanResponse = data.text
+          .replace(new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '')
+          .replace(/\s{2,}/g, ' ')
+          .replace(/\\n/g, '\n')
+          .trim();
+
+        // Remove thinking message before adding response
+        chatbox.removeChild(thinkingMsg);
+        appendMessage(cleanResponse || "That's an interesting proposition...", "bot");
+
+      } catch (error) {
+        chatbox.removeChild(thinkingMsg);
+        appendMessage(`Error: ${error.message}`, "error");
+      } finally {
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    }
+
+    // Event handlers
+    sendBtn.addEventListener('click', sendMessage);
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+  </script>
+</body>
+</html>
